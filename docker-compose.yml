@@ -1,0 +1,73 @@
+version: '3.7'
+
+services:
+  db:
+    container_name: db_container
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_HOST=${DB_HOST}
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    image: postgres:14
+    restart: unless-stopped
+    volumes:
+      - db_volume:/var/lib/postgresql/data
+    networks:
+      - default
+
+  api:
+    container_name: api
+    user: root
+    build: 
+      context: .
+      dockerfile: ./Dockerfile     
+    volumes:
+      - ./:/app        
+    ports:                             
+      - 3000:3000
+    command: npm run start:dev
+    depends_on:
+      - migration
+    restart: always
+    networks: 
+      - default
+
+  pgAdmin:
+    container_name: pgadmin4
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}
+    ports:
+      - '7777:80'
+    networks:
+      - default    
+
+  migration:                                   
+    container_name: migration               
+    user: root                                 
+    build:                                     
+      context: .                               
+      dockerfile: ./Dockerfile
+    environment:
+      - POSTGRES_HOST=${DB_HOST}
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./:/app
+    command: npm run migration:up
+    depends_on:
+      - db
+    networks:
+      - default
+
+volumes:
+  db_volume:
+    name: db_volume
+
+networks:
+  default:
+    name: app_network
